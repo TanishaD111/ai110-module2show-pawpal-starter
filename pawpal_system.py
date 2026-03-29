@@ -71,11 +71,11 @@ class Owner:
 
 
 class Scheduler:
-
-    def __init__(self, owner: Owner):
+    def __init__(self, owner):
         self.owner = owner
 
     def get_all_tasks(self) -> List[Task]:
+        """Retrieve all tasks from all pets of the owner."""
         return self.owner.get_all_tasks()
 
     def generate_daily_plan(self, start_time: str = "08:00") -> List[Dict]:
@@ -85,35 +85,34 @@ class Scheduler:
         - Duration (shorter first if same priority)
         - Owner availability
         """
-
         tasks = [t for t in self.get_all_tasks() if not t.completed]
 
-        # Sort tasks
+        # Sort tasks by priority descending, then duration ascending
         tasks.sort(key=lambda t: (-t.priority, t.duration_minutes))
 
         schedule = []
-        current_time = datetime.strptime(start_time, "%H:%M")
 
-        # If owner has availability, use it; otherwise default to full day
-        available_windows = self.owner.availability or [{"start": "08:00", "end": "23:00"}]
+        # Sort availability windows by start time
+        available_windows = sorted(self.owner.availability, key=lambda w: w["start"])
+        if not available_windows:
+            # Default full day if no availability set
+            available_windows = [{"start": start_time, "end": "20:00"}]
+
         window_index = 0
-        window_start = datetime.strptime(available_windows[window_index]["start"], "%H:%M")
-        window_end = datetime.strptime(available_windows[window_index]["end"], "%H:%M")
-        if current_time < window_start:
-            current_time = window_start
+        current_time = datetime.strptime(available_windows[0]["start"], "%H:%M")
 
         for task in tasks:
-            # Move to next window if task doesn't fit
-            while current_time + timedelta(minutes=task.duration_minutes) > window_end:
+            task_duration = timedelta(minutes=task.duration_minutes)
+
+            # Skip windows until task fits
+            while current_time + task_duration > datetime.strptime(available_windows[window_index]["end"], "%H:%M"):
                 window_index += 1
                 if window_index >= len(available_windows):
-                    # No more windows; stop scheduling
+                    # No more availability windows left
                     return schedule
-                window_start = datetime.strptime(available_windows[window_index]["start"], "%H:%M")
-                window_end = datetime.strptime(available_windows[window_index]["end"], "%H:%M")
-                current_time = window_start
+                current_time = datetime.strptime(available_windows[window_index]["start"], "%H:%M")
 
-            end_time = current_time + timedelta(minutes=task.duration_minutes)
+            end_time = current_time + task_duration
 
             schedule.append({
                 "task_id": task.id,
@@ -124,13 +123,13 @@ class Scheduler:
                 "priority": task.priority
             })
 
+            # Move current time forward within the same window
             current_time = end_time
 
         return schedule
 
     def explain_plan(self, schedule: List[Dict]) -> str:
         explanation = []
-
         explanation.append("Schedule generated based on priority, task duration, and owner availability.")
         explanation.append("Higher priority tasks are scheduled earlier.")
         explanation.append("For equal priority, shorter tasks are scheduled first.\n")

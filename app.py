@@ -105,7 +105,7 @@ morning_first = st.checkbox("Prioritize morning tasks?", value=owner.preferences
 owner.set_preferences({"morning_tasks_first": morning_first})
 
 # -------------------------
-# Tasks (assigned to specific pets)
+# Tasks
 # -------------------------
 st.markdown("### Tasks")
 st.caption("Add a few tasks for your pets. These will feed into your scheduler.")
@@ -157,6 +157,33 @@ if st.session_state.tasks:
     st.table(st.session_state.tasks)
 else:
     st.info("No tasks yet. Add one above.")
+
+# -------------------------
+# Task Completion 
+# -------------------------
+st.subheader("Current Tasks (Check to Complete)")
+
+if owner.pets:
+    any_tasks = False
+    for pet in owner.pets:
+        if pet.tasks:
+            any_tasks = True
+            st.markdown(f"**{pet.name} ({pet.type})**")
+            for task in pet.tasks:
+                # Checkbox default is True if already completed
+                checked = st.checkbox(
+                    f"{task.description} (Priority {task.priority})",
+                    value=task.completed,
+                    key=f"{pet.id}_{task.id}"  # unique key for Streamlit
+                )
+                if checked and not task.completed:
+                    task.mark_complete()
+                    st.success(f"Task '{task.description}' marked complete!")
+                elif not checked and task.completed:
+                    # Optional: allow unchecking to mark incomplete
+                    task.completed = False
+else:
+    st.info("No tasks yet. Add a pet and tasks above.")
 
 # -------------------------
 # Build Schedule
