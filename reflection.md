@@ -7,10 +7,42 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+Three core actions a user should be able to perform:
+1. Add availability and pet/s information to account
+2. Create, edit, and delete pet care tasks, such as walking, grooming, etc
+3. See a daily editable schedule according to pet care tasks and owner availability
+
+Attributes and methods:
+Owner:
+- Attributes: id, name, time_zone, availability (list of Availability), preferences (dict), notification_settings.
+- Methods: update_availability(), set_preferences(), add_pet(), get_available_windows(date).
+
+Pet:
+- Attributes: id, owner_id, name, type (dog/cat/etc.), age, constraints (e.g., no stairs), preferences (e.g., short walks).
+- Methods: update_info(), set_constraints(), recommended_tasks().
+
+Task (task template):
+- Attributes: id, pet_id (or null for owner-level), title, duration_minutes, priority (int), recurrence (e.g., daily/weekly), notes, tags.
+- Methods: update(), set_recurrence(), estimate_effort().
+
+Availability (time window):
+- Attributes: id, owner_id, date (or weekday), start_time, end_time, is_flexible (bool).
+- Methods: overlaps_with(window), contains_interval(start,end), intersection(window).
+
+ScheduledTask (task placed in a schedule):
+- Attributes: id, task_id, scheduled_start, scheduled_end, status (planned/completed/conflict), assigned_pet_id.
+- Methods: move(start), mark_complete(), duration().
+
+Schedule (daily plan):
+- Attributes: date, owner_id, scheduled_tasks (list of ScheduledTask), summary (optional explanation).
+- Methods: add_scheduled_task(), remove_scheduled_task(), detect_conflicts(), explain_decisions(), generate_schedule(owner, date).
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+I realized that owner has no pets collection and only the pet stores the owner id. I added a pet list for owners.
 
 ---
 
