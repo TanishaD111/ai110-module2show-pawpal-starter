@@ -2,159 +2,111 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, timedelta
+
+
+@dataclass
+class Task:
+    id: int
+    description: str
+    duration_minutes: int
+    priority: int
+    frequency: Optional[str] = None  # e.g., "daily", "weekly"
+    completed: bool = False
+    pet_id: Optional[int] = None
+
+    def mark_complete(self) -> None:
+        self.completed = True
+
+    def mark_incomplete(self) -> None:
+        self.completed = False
+
+
+@dataclass
+class Pet:
+    id: int
+    name: str
+    type: str
+    age: int
+    tasks: List[Task] = field(default_factory=list)
+
+    def add_task(self, task: Task) -> None:
+        task.pet_id = self.id
+        self.tasks.append(task)
+
+    def remove_task(self, task_id: int) -> None:
+        self.tasks = [t for t in self.tasks if t.id != task_id]
+
+    def get_tasks(self) -> List[Task]:
+        return self.tasks
 
 
 @dataclass
 class Owner:
     id: int
     name: str
-    time_zone: str
-    availability: List["Availability"] = field(default_factory=list)
-    preferences: Dict = field(default_factory=dict)
-    notification_settings: Dict = field(default_factory=dict)
-    pets: List["Pet"] = field(default_factory=list)
+    pets: List[Pet] = field(default_factory=list)
 
-    def update_availability(self) -> None:
-        raise NotImplementedError
+    def add_pet(self, pet: Pet) -> None:
+        self.pets.append(pet)
 
-    def set_preferences(self, preferences: Dict) -> None:
-        raise NotImplementedError
-
-    def add_pet(self, pet: "Pet") -> None:
-        """Associate a Pet with this Owner (enforce ownership invariants)."""
-        raise NotImplementedError
-
-    def remove_pet(self, pet_id: int, transfer_to_owner_id: Optional[int] = None) -> "Pet":
-        """Remove or transfer a pet; because owner_id is required, require transfer id."""
-        raise NotImplementedError
-
-    def get_pet(self, pet_id: int) -> Optional["Pet"]:
-        raise NotImplementedError
-
-    def list_pets(self) -> List["Pet"]:
-        raise NotImplementedError
-
-    def transfer_pet(self, pet: "Pet", new_owner: "Owner") -> None:
-        """Atomic transfer of pet to another owner."""
-        raise NotImplementedError
-
-@dataclass
-class Pet:
-	id: int
-	owner_id: int
-	name: str
-	type: str
-	age: int
-	constraints: Dict = field(default_factory=dict)
-	preferences: Dict = field(default_factory=dict)
-
-	def update_info(self, **kwargs) -> None:
-		"""Update pet information."""
-		raise NotImplementedError
-
-	def set_constraints(self, constraints: Dict) -> None:
-		"""Set scheduling constraints for the pet."""
-		raise NotImplementedError
-
-	def recommended_tasks(self) -> List["Task"]:
-		"""Return recommended tasks for this pet."""
-		raise NotImplementedError
+    def get_all_tasks(self) -> List[Task]:
+        tasks = []
+        for pet in self.pets:
+            tasks.extend(pet.get_tasks())
+        return tasks
 
 
-@dataclass
-class Task:
-	id: int
-	pet_id: Optional[int]
-	title: str
-	duration_minutes: int
-	priority: int
-	recurrence: Optional[str] = None
-	notes: Optional[str] = None
-	tags: List[str] = field(default_factory=list)
+class Scheduler:
 
-	def update(self, **kwargs) -> None:
-		"""Update task fields."""
-		raise NotImplementedError
+    def __init__(self, owner: Owner):
+        self.owner = owner
 
-	def set_recurrence(self, recurrence: str) -> None:
-		"""Set recurrence rule for the task."""
-		raise NotImplementedError
+    def get_all_tasks(self) -> List[Task]:
+        return self.owner.get_all_tasks()
 
-	def estimate_effort(self) -> int:
-		"""Return an estimated effort value for scheduling heuristics."""
-		raise NotImplementedError
+    def generate_daily_plan(self, start_time: str = "08:00") -> List[Dict]:
+        """
+        Generate a daily schedule based on:
+        - Priority (higher first)
+        - Duration (shorter first if same priority)
+        """
 
+        tasks = [t for t in self.get_all_tasks() if not t.completed]
 
-@dataclass
-class Availability:
-	id: int
-	owner_id: int
-	date_or_weekday: str
-	start_time: str
-	end_time: str
-	is_flexible: bool = False
+        # Sort tasks
+        tasks.sort(key=lambda t: (-t.priority, t.duration_minutes))
 
-	def overlaps_with(self, window: "Availability") -> bool:
-		"""Return True if this availability overlaps with another window."""
-		raise NotImplementedError
+        schedule = []
+        current_time = datetime.strptime(start_time, "%H:%M")
 
-	def contains_interval(self, start: str, end: str) -> bool:
-		"""Return True if the given interval is contained in this availability."""
-		raise NotImplementedError
+        for task in tasks:
+            end_time = current_time + timedelta(minutes=task.duration_minutes)
 
-	def intersection(self, window: "Availability") -> Optional["Availability"]:
-		"""Return the intersection Availability window or None if no overlap."""
-		raise NotImplementedError
+            schedule.append({
+                "task_id": task.id,
+                "description": task.description,
+                "pet_id": task.pet_id,
+                "start": current_time.strftime("%H:%M"),
+                "end": end_time.strftime("%H:%M"),
+                "priority": task.priority
+            })
 
+            current_time = end_time
 
-@dataclass
-class ScheduledTask:
-	id: int
-	task_id: int
-	scheduled_start: str
-	scheduled_end: str
-	status: str
-	assigned_pet_id: Optional[int] = None
+        return schedule
 
-	def move(self, start: str) -> None:
-		"""Move scheduled task to a new start time (adjust end accordingly)."""
-		raise NotImplementedError
+    def explain_plan(self, schedule: List[Dict]) -> str:
+        explanation = []
 
-	def mark_complete(self) -> None:
-		"""Mark this scheduled task as completed."""
-		raise NotImplementedError
+        explanation.append("Schedule generated based on priority and task duration.")
+        explanation.append("Higher priority tasks are scheduled earlier.")
+        explanation.append("For equal priority, shorter tasks are scheduled first.\n")
 
-	def duration(self) -> int:
-		"""Return duration in minutes for this scheduled task."""
-		raise NotImplementedError
+        for item in schedule:
+            explanation.append(
+                f"Task '{item['description']}' scheduled at {item['start']} "
+                f"(priority {item['priority']})."
+            )
 
-
-@dataclass
-class Schedule:
-	date: str
-	owner_id: int
-	scheduled_tasks: List[ScheduledTask] = field(default_factory=list)
-	summary: Optional[str] = None
-
-	def add_scheduled_task(self, scheduled_task: ScheduledTask) -> None:
-		"""Add a ScheduledTask to the schedule."""
-		raise NotImplementedError
-
-	def remove_scheduled_task(self, scheduled_task_id: int) -> None:
-		"""Remove a ScheduledTask from the schedule by id."""
-		raise NotImplementedError
-
-	def detect_conflicts(self) -> List[ScheduledTask]:
-		"""Detect and return a list of conflicting scheduled tasks."""
-		raise NotImplementedError
-
-	def explain_decisions(self) -> str:
-		"""Return a human-readable explanation of scheduling decisions."""
-		raise NotImplementedError
-
-	@staticmethod
-	def generate_schedule(owner: Owner, date_: str) -> "Schedule":
-		"""Generate a schedule for the given owner and date."""
-		raise NotImplementedError
-
+        return "\n".join(explanation)
