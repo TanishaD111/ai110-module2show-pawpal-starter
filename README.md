@@ -41,3 +41,14 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+### Features List
+- Owner & Pet Management: Add multiple pets per owner with basic details.
+- Task Management: Create, assign, and track pet care tasks (description, duration, priority).
+- Task Completion: Mark tasks as complete; completed tasks are excluded from schedules.
+- Smart Scheduling: Generate daily plans based on task priority, duration, and owner availability.
+- Schedule Explanation: Get human-readable reasoning for the order of scheduled tasks.
+
+### Pawpal App
+![App Screenshot Upon Run](app_1.png)
+![App Screenshot With Schedule](app_2.png)

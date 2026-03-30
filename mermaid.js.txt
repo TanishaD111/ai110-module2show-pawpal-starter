@@ -1,0 +1,46 @@
+classDiagram
+
+class Owner {
+    id: int
+    name: string
+    pets: List<Pet>
+    availability: List<Dict>
+    preferences: Dict
+    add_pet(pet: Pet)
+    get_all_tasks(): List<Task>
+    add_availability(start: str, end: str)
+    set_preferences(preferences: Dict)
+}
+
+class Pet {
+    id: int
+    name: string
+    type: string
+    age: int
+    tasks: List<Task>
+    add_task(task: Task)
+    get_tasks(): List<Task>
+}
+
+class Task {
+    id: int
+    description: string
+    duration_minutes: int
+    priority: int
+    pet_id: int
+    completed: bool
+    mark_complete()
+    mark_incomplete()
+}
+
+class Scheduler {
+    owner: Owner
+    get_all_tasks(): List<Task>
+    generate_daily_plan(start_time: str): List<Dict>
+    explain_plan(schedule: List<Dict>): str
+}
+
+Owner "1" --> "*" Pet : owns
+Pet "1" --> "*" Task : has
+Scheduler --> Owner : uses
+Scheduler --> Task : schedules
